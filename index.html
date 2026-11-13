@@ -1,0 +1,842 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>劉勝杰的雷霆戰機 - Thunder Fighter Arcade</title>
+    <!-- Tailwind CSS for UI overlays -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts for arcade styling -->
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Orbitron', sans-serif;
+            background-color: #03030a;
+            color: #ffffff;
+            overflow: hidden;
+            touch-action: none;
+            user-select: none;
+        }
+        canvas {
+            display: block;
+            background: #000;
+        }
+        .glow-text {
+            text-shadow: 0 0 10px rgba(0, 243, 255, 0.8), 0 0 20px rgba(0, 243, 255, 0.5);
+        }
+        .glow-box {
+            box-shadow: 0 0 20px rgba(0, 243, 255, 0.3), inset 0 0 15px rgba(0, 243, 255, 0.15);
+        }
+        .glow-red {
+            text-shadow: 0 0 10px rgba(255, 0, 85, 0.8), 0 0 20px rgba(255, 0, 85, 0.5);
+        }
+        .glow-gold {
+            text-shadow: 0 0 10px rgba(255, 215, 0, 0.8), 0 0 20px rgba(255, 215, 0, 0.5);
+        }
+    </style>
+</head>
+<body class="relative w-screen h-screen flex items-center justify-center select-none">
+
+    <!-- Game Canvas -->
+    <canvas id="gameCanvas" class="absolute inset-0 w-full h-full cursor-none"></canvas>
+
+    <!-- UI Overlay: Start Screen -->
+    <div id="startScreen" class="absolute inset-0 bg-black/85 flex flex-col items-center justify-center z-20 backdrop-blur-sm p-4">
+        <div class="text-center max-w-lg w-full bg-slate-950/90 border border-cyan-500/50 rounded-2xl p-8 glow-box">
+            <div class="inline-block px-3 py-1 bg-cyan-500/20 text-cyan-400 text-xs font-bold rounded-full mb-3 tracking-widest uppercase border border-cyan-500/30">
+                Retro Arcade Edition
+            </div>
+            <h1 class="text-4xl md:text-6xl font-black text-cyan-400 glow-text mb-2 tracking-wider">雷霆戰機</h1>
+            <p class="text-lg md:text-xl font-bold text-yellow-400 glow-gold mb-6">👑 菁英飛行員：劉勝杰</p>
+            
+            <div class="bg-slate-900/80 border border-cyan-500/30 rounded-xl p-5 mb-8 text-left text-xs md:text-sm space-y-3">
+                <div class="flex items-center space-x-3">
+                    <span class="text-cyan-400 font-bold w-20">🎮 移動</span>
+                    <span class="text-gray-300">滑鼠拖曳 / 觸控 / 方向鍵 / WASD</span>
+                </div>
+                <div class="flex items-center space-x-3">
+                    <span class="text-cyan-400 font-bold w-20">🔥 攻擊</span>
+                    <span class="text-gray-300">主砲自動連發雷射</span>
+                </div>
+                <div class="flex items-center space-x-3">
+                    <span class="text-cyan-400 font-bold w-20">💎 道具</span>
+                    <span class="text-gray-300">【W】升級武器火力 ｜ 【S】能量護盾</span>
+                </div>
+            </div>
+
+            <button id="startBtn" class="w-full py-4 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-black font-black text-xl rounded-xl shadow-lg shadow-cyan-500/50 transition transform hover:scale-105 active:scale-95 uppercase tracking-widest cursor-pointer">
+                出擊 START GAME
+            </button>
+        </div>
+    </div>
+
+    <!-- UI Overlay: HUD (Top bar) -->
+    <div id="hud" class="absolute top-0 left-0 w-full p-4 flex justify-between items-center pointer-events-none z-10 hidden">
+        <div class="flex items-center space-x-4 md:space-x-6">
+            <div>
+                <div class="text-[10px] md:text-xs text-cyan-400 tracking-wider">SCORE</div>
+                <div id="scoreDisplay" class="text-xl md:text-2xl font-black glow-text">000000</div>
+            </div>
+            <div class="border-l border-cyan-500/30 pl-4 md:pl-6">
+                <div class="text-[10px] md:text-xs text-yellow-400 tracking-wider">飛行員 PILOT</div>
+                <div id="pilotDisplay" class="text-xs md:text-sm font-bold text-yellow-300">劉勝杰</div>
+            </div>
+            <div class="border-l border-cyan-500/30 pl-4 md:pl-6">
+                <div class="text-[10px] md:text-xs text-cyan-400 tracking-wider">LEVEL</div>
+                <div id="levelDisplay" class="text-lg md:text-xl font-bold">1</div>
+            </div>
+        </div>
+
+        <div class="flex items-center space-x-4 md:space-x-6">
+            <!-- Health Bar -->
+            <div class="flex flex-col items-end">
+                <div class="text-[10px] md:text-xs text-red-400 tracking-wider">ARMOR HP</div>
+                <div class="w-28 md:w-36 h-3 bg-slate-900 rounded-full overflow-hidden border border-red-500/50 mt-1">
+                    <div id="hpBar" class="h-full bg-gradient-to-r from-red-500 to-orange-400 transition-all duration-200" style="width: 100%;"></div>
+                </div>
+            </div>
+            <!-- Lives / Shields -->
+            <div class="flex flex-col items-end">
+                <div class="text-[10px] md:text-xs text-cyan-400 tracking-wider">LIVES</div>
+                <div id="livesDisplay" class="text-base md:text-xl font-bold text-cyan-300">❤️❤️❤️</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- UI Overlay: Boss Health Bar -->
+    <div id="bossHud" class="absolute top-16 left-1/2 -translate-x-1/2 w-3/4 max-w-xl pointer-events-none z-10 hidden flex flex-col items-center">
+        <div class="flex justify-between w-full text-xs text-red-400 font-bold mb-1">
+            <span id="bossName">BOSS: 毀滅者 Dreadnought</span>
+            <span id="bossHpText">100%</span>
+        </div>
+        <div class="w-full h-4 bg-slate-900 rounded-full border border-red-600 overflow-hidden shadow-lg shadow-red-500/30">
+            <div id="bossHpBar" class="h-full bg-red-600 transition-all duration-100" style="width: 100%;"></div>
+        </div>
+    </div>
+
+    <!-- UI Overlay: Game Over Screen -->
+    <div id="gameOverScreen" class="absolute inset-0 bg-black/90 flex flex-col items-center justify-center z-20 backdrop-blur-md p-4 hidden">
+        <div class="text-center max-w-md w-full bg-slate-950/90 border border-red-500/50 rounded-2xl p-8 glow-box">
+            <h2 class="text-4xl md:text-5xl font-black text-red-500 glow-red mb-2 tracking-wider">戰機墜毀</h2>
+            <p class="text-sm text-red-300/80 mb-6 uppercase tracking-widest">Mission Failed - 飛行員：劉勝杰</p>
+            
+            <div class="space-y-4 mb-8 bg-slate-900/60 rounded-xl p-4 border border-slate-800 text-left">
+                <div class="flex justify-between items-center text-sm">
+                    <span class="text-gray-400">最終得分 Final Score</span>
+                    <span id="finalScore" class="text-xl font-bold text-cyan-400">0</span>
+                </div>
+                <div class="flex justify-between items-center text-sm">
+                    <span class="text-gray-400">到達關卡 Reached Level</span>
+                    <span id="finalLevel" class="text-xl font-bold text-cyan-400">1</span>
+                </div>
+                <div class="flex justify-between items-center text-sm border-t border-slate-800 pt-3">
+                    <span class="text-gray-400">紀錄保持者 Pilot</span>
+                    <span class="text-sm font-bold text-yellow-400">劉勝杰 (王牌駕駛員)</span>
+                </div>
+            </div>
+
+            <button id="restartBtn" class="w-full py-4 bg-gradient-to-r from-red-500 to-orange-600 hover:from-red-400 hover:to-orange-500 text-white font-black text-xl rounded-xl shadow-lg shadow-red-500/50 transition transform hover:scale-105 active:scale-95 uppercase tracking-widest cursor-pointer">
+                重新挑戰 RETRY
+            </button>
+        </div>
+    </div>
+
+    <!-- Game Logic JavaScript -->
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // DOM elements
+        const startScreen = document.getElementById('startScreen');
+        const gameOverScreen = document.getElementById('gameOverScreen');
+        const startBtn = document.getElementById('startBtn');
+        const restartBtn = document.getElementById('restartBtn');
+        const hud = document.getElementById('hud');
+        const bossHud = document.getElementById('bossHud');
+        const scoreDisplay = document.getElementById('scoreDisplay');
+        const levelDisplay = document.getElementById('levelDisplay');
+        const hpBar = document.getElementById('hpBar');
+        const livesDisplay = document.getElementById('livesDisplay');
+        const bossHpBar = document.getElementById('bossHpBar');
+        const bossHpText = document.getElementById('bossHpText');
+        const bossName = document.getElementById('bossName');
+        const finalScore = document.getElementById('finalScore');
+        const finalLevel = document.getElementById('finalLevel');
+
+        // Resize canvas
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        // Game states
+        let gameState = 'START'; // START, PLAYING, GAMEOVER
+        let score = 0;
+        let level = 1;
+        let gameTimer = 0;
+
+        // Player object
+        let player = {
+            x: canvas.width / 2,
+            y: canvas.height - 120,
+            width: 44,
+            height: 44,
+            speed: 6.5,
+            hp: 100,
+            maxHp: 100,
+            lives: 3,
+            weaponLevel: 1,
+            shield: false,
+            shieldTimer: 0,
+            invulnerableTimer: 0,
+            targetX: canvas.width / 2,
+            targetY: canvas.height - 120
+        };
+
+        // Input controls
+        let keys = {};
+        let isMouseDown = false;
+
+        window.addEventListener('keydown', e => { keys[e.code] = true; });
+        window.addEventListener('keyup', e => { keys[e.code] = false; });
+
+        canvas.addEventListener('mousemove', e => {
+            if (gameState === 'PLAYING') {
+                player.targetX = e.clientX;
+                player.targetY = e.clientY;
+            }
+        });
+
+        canvas.addEventListener('mousedown', () => { isMouseDown = true; });
+        window.addEventListener('mouseup', () => { isMouseDown = false; });
+
+        canvas.addEventListener('touchmove', e => {
+            if (gameState === 'PLAYING' && e.touches.length > 0) {
+                player.targetX = e.touches[0].clientX;
+                player.targetY = e.touches[0].clientY - 45;
+            }
+        }, { passive: true });
+
+        canvas.addEventListener('touchstart', e => {
+            if (gameState === 'PLAYING' && e.touches.length > 0) {
+                player.targetX = e.touches[0].clientX;
+                player.targetY = e.touches[0].clientY - 45;
+                isMouseDown = true;
+            }
+        }, { passive: true });
+
+        canvas.addEventListener('touchend', () => { isMouseDown = false; });
+
+        // Collections
+        let stars = [];
+        let bullets = [];
+        let enemyBullets = [];
+        let enemies = [];
+        let particles = [];
+        let powerUps = [];
+        let boss = null;
+
+        // Initialize Background Stars
+        for (let i = 0; i < 140; i++) {
+            stars.push({
+                x: Math.random() * canvas.width,
+                y: Math.random() * canvas.height,
+                size: Math.random() * 2.5 + 0.5,
+                speed: Math.random() * 3.5 + 0.8,
+                brightness: Math.random()
+            });
+        }
+
+        function initGame() {
+            score = 0;
+            level = 1;
+            gameTimer = 0;
+            player.hp = 100;
+            player.maxHp = 100;
+            player.lives = 3;
+            player.weaponLevel = 1;
+            player.shield = false;
+            player.shieldTimer = 0;
+            player.invulnerableTimer = 0;
+            player.x = canvas.width / 2;
+            player.y = canvas.height - 120;
+            player.targetX = player.x;
+            player.targetY = player.y;
+
+            bullets = [];
+            enemyBullets = [];
+            enemies = [];
+            particles = [];
+            powerUps = [];
+            boss = null;
+            bossHud.classList.add('hidden');
+        }
+
+        startBtn.addEventListener('click', () => {
+            startScreen.classList.add('hidden');
+            hud.classList.remove('hidden');
+            initGame();
+            gameState = 'PLAYING';
+        });
+
+        restartBtn.addEventListener('click', () => {
+            gameOverScreen.classList.add('hidden');
+            initGame();
+            gameState = 'PLAYING';
+        });
+
+        // Particle generator
+        function createExplosion(x, y, color, count = 22, speedMultiplier = 1) {
+            for (let i = 0; i < count; i++) {
+                const angle = Math.random() * Math.PI * 2;
+                const speed = (Math.random() * 4 + 1) * speedMultiplier;
+                particles.push({
+                    x: x,
+                    y: y,
+                    vx: Math.cos(angle) * speed,
+                    vy: Math.sin(angle) * speed,
+                    radius: Math.random() * 3 + 1,
+                    color: color,
+                    alpha: 1,
+                    decay: Math.random() * 0.03 + 0.015
+                });
+            }
+        }
+
+        // Spawn Enemies
+        let enemySpawnTimer = 0;
+        function handleEnemySpawning() {
+            if (boss) return;
+
+            enemySpawnTimer++;
+            let spawnInterval = Math.max(25, 75 - level * 7);
+
+            if (enemySpawnTimer >= spawnInterval) {
+                enemySpawnTimer = 0;
+                let typeRand = Math.random();
+                let type = 'scout';
+                let hp = 30 + level * 10;
+                let scoreVal = 100;
+
+                if (typeRand > 0.72 && level >= 2) {
+                    type = 'heavy';
+                    hp = 100 + level * 25;
+                    scoreVal = 350;
+                } else if (typeRand > 0.42 && level >= 1) {
+                    type = 'shooter';
+                    hp = 50 + level * 12;
+                    scoreVal = 200;
+                }
+
+                enemies.push({
+                    x: Math.random() * (canvas.width - 80) + 40,
+                    y: -50,
+                    width: type === 'heavy' ? 58 : 42,
+                    height: type === 'heavy' ? 58 : 42,
+                    type: type,
+                    hp: hp,
+                    maxHp: hp,
+                    speed: type === 'heavy' ? 1.6 : 2.4,
+                    shootTimer: 0,
+                    shootInterval: Math.random() * 45 + 50,
+                    scoreVal: scoreVal
+                });
+            }
+
+            // Boss Trigger every 2500 points
+            if (score > 0 && score % 2500 === 0 && !boss) {
+                spawnBoss();
+            }
+        }
+
+        function spawnBoss() {
+            boss = {
+                x: canvas.width / 2,
+                y: -140,
+                targetY: 110,
+                width: 130,
+                height: 95,
+                hp: 1600 + level * 600,
+                maxHp: 1600 + level * 600,
+                speed: 2,
+                direction: 1,
+                shootTimer: 0,
+                patternTimer: 0
+            };
+            bossHud.classList.remove('hidden');
+            bossName.innerText = `BOSS: 宇宙天魔雷霆旗艦 Lv.${level} (迎擊: 劉勝杰)`;
+        }
+
+        // Drop Power-up
+        function dropPowerUp(x, y) {
+            if (Math.random() < 0.28) {
+                const type = Math.random() > 0.45 ? 'weapon' : 'shield';
+                powerUps.push({
+                    x: x,
+                    y: y,
+                    type: type,
+                    radius: 16,
+                    speed: 1.5
+                });
+            }
+        }
+
+        // Main game update loop
+        function update() {
+            if (gameState !== 'PLAYING') return;
+
+            gameTimer++;
+            level = Math.floor(score / 2000) + 1;
+            levelDisplay.innerText = level;
+
+            // Update Stars
+            stars.forEach(star => {
+                star.y += star.speed + (level * 0.2);
+                if (star.y > canvas.height) {
+                    star.y = 0;
+                    star.x = Math.random() * canvas.width;
+                }
+            });
+
+            // Keyboard movement
+            let dx = 0, dy = 0;
+            if (keys['ArrowLeft'] || keys['KeyA']) dx = -1;
+            if (keys['ArrowRight'] || keys['KeyD']) dx = 1;
+            if (keys['ArrowUp'] || keys['KeyW']) dy = -1;
+            if (keys['ArrowDown'] || keys['KeyS']) dy = 1;
+
+            if (dx !== 0 || dy !== 0) {
+                player.x += dx * player.speed;
+                player.y += dy * player.speed;
+                player.targetX = player.x;
+                player.targetY = player.y;
+            } else {
+                // Smooth follow mouse/touch
+                player.x += (player.targetX - player.x) * 0.15;
+                player.y += (player.targetY - player.y) * 0.15;
+            }
+
+            // Boundary constraints
+            player.x = Math.max(player.width / 2, Math.min(canvas.width - player.width / 2, player.x));
+            player.y = Math.max(player.height / 2, Math.min(canvas.height - player.height / 2, player.y));
+
+            // Shields & Invulnerability countdown
+            if (player.shield) {
+                player.shieldTimer--;
+                if (player.shieldTimer <= 0) player.shield = false;
+            }
+            if (player.invulnerableTimer > 0) player.invulnerableTimer--;
+
+            // Auto-fire laser bullets
+            if (gameTimer % 12 === 0 || isMouseDown) {
+                if (player.weaponLevel === 1) {
+                    bullets.push({ x: player.x, y: player.y - 25, vx: 0, vy: -14, width: 4, height: 16 });
+                } else if (player.weaponLevel === 2) {
+                    bullets.push({ x: player.x - 12, y: player.y - 20, vx: 0, vy: -14, width: 4, height: 16 });
+                    bullets.push({ x: player.x + 12, y: player.y - 20, vx: 0, vy: -14, width: 4, height: 16 });
+                } else {
+                    bullets.push({ x: player.x, y: player.y - 25, vx: 0, vy: -15, width: 5, height: 18 });
+                    bullets.push({ x: player.x - 16, y: player.y - 15, vx: -1.2, vy: -14, width: 4, height: 15 });
+                    bullets.push({ x: player.x + 16, y: player.y - 15, vx: 1.2, vy: -14, width: 4, height: 15 });
+                }
+            }
+
+            // Update Player Bullets
+            for (let i = bullets.length - 1; i >= 0; i--) {
+                let b = bullets[i];
+                b.x += b.vx;
+                b.y += b.vy;
+                if (b.y < -20 || b.x < 0 || b.x > canvas.width) {
+                    bullets.splice(i, 1);
+                }
+            }
+
+            // Update Enemy Bullets
+            for (let i = enemyBullets.length - 1; i >= 0; i--) {
+                let eb = enemyBullets[i];
+                eb.x += eb.vx;
+                eb.y += eb.vy;
+
+                // Collision with player
+                if (Math.hypot(eb.x - player.x, eb.y - player.y) < player.width / 2 + eb.radius) {
+                    enemyBullets.splice(i, 1);
+                    hitPlayer(15);
+                    continue;
+                }
+
+                if (eb.y > canvas.height + 20 || eb.y < -20 || eb.x < -20 || eb.x > canvas.width + 20) {
+                    enemyBullets.splice(i, 1);
+                }
+            }
+
+            // Handle Enemies
+            handleEnemySpawning();
+
+            for (let i = enemies.length - 1; i >= 0; i--) {
+                let en = enemies[i];
+                en.y += en.speed;
+
+                // Enemy shooting behavior
+                if (en.type === 'shooter' || en.type === 'heavy') {
+                    en.shootTimer++;
+                    if (en.shootTimer >= en.shootInterval) {
+                        en.shootTimer = 0;
+                        const angle = Math.atan2(player.y - en.y, player.x - en.x);
+                        const speed = 4;
+                        enemyBullets.push({
+                            x: en.x,
+                            y: en.y + en.height / 2,
+                            vx: Math.cos(angle) * speed,
+                            vy: Math.sin(angle) * speed,
+                            radius: 5
+                        });
+                        if (en.type === 'heavy') {
+                            enemyBullets.push({
+                                x: en.x - 15,
+                                y: en.y + en.height / 2,
+                                vx: Math.cos(angle - 0.2) * speed,
+                                vy: Math.sin(angle - 0.2) * speed,
+                                radius: 5
+                            });
+                            enemyBullets.push({
+                                x: en.x + 15,
+                                y: en.y + en.height / 2,
+                                vx: Math.cos(angle + 0.2) * speed,
+                                vy: Math.sin(angle + 0.2) * speed,
+                                radius: 5
+                            });
+                        }
+                    }
+                }
+
+                // Collision with player
+                if (Math.hypot(en.x - player.x, en.y - player.y) < (player.width + en.width) / 3) {
+                    createExplosion(en.x, en.y, '#ff4400', 30);
+                    enemies.splice(i, 1);
+                    hitPlayer(30);
+                    continue;
+                }
+
+                // Check bullets hit enemy
+                for (let j = bullets.length - 1; j >= 0; j--) {
+                    let b = bullets[j];
+                    if (Math.abs(b.x - en.x) < en.width / 2 && Math.abs(b.y - en.y) < en.height / 2) {
+                        en.hp -= 25;
+                        bullets.splice(j, 1);
+                        createExplosion(b.x, b.y, '#00ffff', 4, 0.5);
+
+                        if (en.hp <= 0) {
+                            createExplosion(en.x, en.y, '#ffaa00', 35);
+                            dropPowerUp(en.x, en.y);
+                            score += en.scoreVal;
+                            scoreDisplay.innerText = String(score).padStart(6, '0');
+                            enemies.splice(i, 1);
+                            break;
+                        }
+                    }
+                }
+
+                // Remove out of bounds
+                if (en && en.y > canvas.height + 60) {
+                    enemies.splice(i, 1);
+                }
+            }
+
+            // Handle Boss
+            if (boss) {
+                if (boss.y < boss.targetY) {
+                    boss.y += boss.speed;
+                } else {
+                    boss.x += boss.speed * boss.direction;
+                    if (boss.x < 100 || boss.x > canvas.width - 100) {
+                        boss.direction *= -1;
+                    }
+                }
+
+                boss.shootTimer++;
+                if (boss.shootTimer >= 35) {
+                    boss.shootTimer = 0;
+                    // Circular barrage
+                    for (let a = 0; a < Math.PI * 2; a += Math.PI / 4) {
+                        enemyBullets.push({
+                            x: boss.x,
+                            y: boss.y,
+                            vx: Math.cos(a + gameTimer * 0.05) * 3.5,
+                            vy: Math.sin(a + gameTimer * 0.05) * 3.5,
+                            radius: 6
+                        });
+                    }
+                }
+
+                // Check player collision with boss
+                if (Math.hypot(boss.x - player.x, boss.y - player.y) < 70) {
+                    hitPlayer(40);
+                }
+
+                // Check bullets hit boss
+                for (let j = bullets.length - 1; j >= 0; j--) {
+                    let b = bullets[j];
+                    if (Math.abs(b.x - boss.x) < boss.width / 2 && Math.abs(b.y - boss.y) < boss.height / 2) {
+                        boss.hp -= 25;
+                        bullets.splice(j, 1);
+                        createExplosion(b.x, b.y, '#ff0055', 5);
+
+                        let hpPercent = Math.max(0, (boss.hp / boss.maxHp) * 100);
+                        bossHpBar.style.width = hpPercent + '%';
+                        bossHpText.innerText = Math.round(hpPercent) + '%';
+
+                        if (boss.hp <= 0) {
+                            createExplosion(boss.x, boss.y, '#ff00ff', 80, 1.8);
+                            score += 2000;
+                            scoreDisplay.innerText = String(score).padStart(6, '0');
+                            boss = null;
+                            bossHud.classList.add('hidden');
+                            dropPowerUp(canvas.width / 2, canvas.height / 3);
+                            break;
+                        }
+                    }
+                }
+            }
+
+            // Handle Power-ups
+            for (let i = powerUps.length - 1; i >= 0; i--) {
+                let p = powerUps[i];
+                p.y += p.speed;
+
+                if (Math.hypot(p.x - player.x, p.y - player.y) < player.width / 2 + p.radius) {
+                    if (p.type === 'weapon') {
+                        player.weaponLevel = Math.min(3, player.weaponLevel + 1);
+                    } else {
+                        player.shield = true;
+                        player.shieldTimer = 450; // frames
+                    }
+                    powerUps.splice(i, 1);
+                    continue;
+                }
+
+                if (p.y > canvas.height + 30) {
+                    powerUps.splice(i, 1);
+                }
+            }
+
+            // Update Particles
+            for (let i = particles.length - 1; i >= 0; i--) {
+                let pt = particles[i];
+                pt.x += pt.vx;
+                pt.y += pt.vy;
+                pt.alpha -= pt.decay;
+                if (pt.alpha <= 0) {
+                    particles.splice(i, 1);
+                }
+            }
+        }
+
+        function hitPlayer(damage) {
+            if (player.invulnerableTimer > 0) return;
+
+            if (player.shield) {
+                player.shield = false;
+                player.invulnerableTimer = 40;
+                return;
+            }
+
+            player.hp -= damage;
+            player.invulnerableTimer = 60;
+            createExplosion(player.x, player.y, '#ff0033', 25);
+
+            if (player.hp <= 0) {
+                player.lives--;
+                if (player.lives < 0) {
+                    triggerGameOver();
+                } else {
+                    player.hp = player.maxHp;
+                    player.weaponLevel = 1;
+                }
+            }
+
+            // Update HUD UI
+            updateHUD();
+        }
+
+        function updateHUD() {
+            let hpPercent = Math.max(0, (player.hp / player.maxHp) * 100);
+            hpBar.style.width = hpPercent + '%';
+
+            let hearts = '';
+            for (let i = 0; i < player.lives; i++) hearts += '❤️';
+            livesDisplay.innerText = hearts;
+        }
+
+        // Render graphics onto Canvas
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Draw Background Stars
+            stars.forEach(star => {
+                ctx.fillStyle = `rgba(255, 255, 255, ${star.brightness})`;
+                ctx.fillRect(star.x, star.y, star.size, star.size);
+            });
+
+            // Draw Power-ups
+            powerUps.forEach(p => {
+                ctx.save();
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+                ctx.fillStyle = p.type === 'weapon' ? '#00ffff' : '#ffff00';
+                ctx.shadowColor = p.type === 'weapon' ? '#00ffff' : '#ffff00';
+                ctx.shadowBlur = 15;
+                ctx.fill();
+                ctx.lineWidth = 2;
+                ctx.strokeStyle = '#ffffff';
+                ctx.stroke();
+
+                ctx.fillStyle = '#000';
+                ctx.font = 'bold 12px Orbitron';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(p.type === 'weapon' ? 'W' : 'S', p.x, p.y);
+                ctx.restore();
+            });
+
+            // Draw Player Bullets
+            bullets.forEach(b => {
+                ctx.save();
+                ctx.fillStyle = '#00f3ff';
+                ctx.shadowColor = '#00f3ff';
+                ctx.shadowBlur = 12;
+                ctx.fillRect(b.x - b.width / 2, b.y, b.width, b.height);
+                ctx.restore();
+            });
+
+            // Draw Enemy Bullets
+            enemyBullets.forEach(eb => {
+                ctx.save();
+                ctx.beginPath();
+                ctx.arc(eb.x, eb.y, eb.radius, 0, Math.PI * 2);
+                ctx.fillStyle = '#ff0055';
+                ctx.shadowColor = '#ff0055';
+                ctx.shadowBlur = 10;
+                ctx.fill();
+                ctx.restore();
+            });
+
+            // Draw Enemies
+            enemies.forEach(en => {
+                ctx.save();
+                ctx.translate(en.x, en.y);
+                ctx.fillStyle = en.type === 'heavy' ? '#aa22ff' : (en.type === 'shooter' ? '#ff5500' : '#00ffaa');
+                ctx.strokeStyle = '#ffffff';
+                ctx.lineWidth = 2;
+                ctx.shadowColor = ctx.fillStyle;
+                ctx.shadowBlur = 12;
+
+                // Enemy Fighter Shape
+                ctx.beginPath();
+                ctx.moveTo(0, en.height / 2);
+                ctx.lineTo(-en.width / 2, -en.height / 2);
+                ctx.lineTo(0, -en.height / 4);
+                ctx.lineTo(en.width / 2, -en.height / 2);
+                ctx.closePath();
+                ctx.fill();
+                ctx.stroke();
+
+                ctx.restore();
+            });
+
+            // Draw Boss
+            if (boss) {
+                ctx.save();
+                ctx.translate(boss.x, boss.y);
+                ctx.fillStyle = '#ff1133';
+                ctx.strokeStyle = '#ffee00';
+                ctx.lineWidth = 3;
+                ctx.shadowColor = '#ff0000';
+                ctx.shadowBlur = 25;
+
+                ctx.beginPath();
+                ctx.moveTo(0, boss.height / 2);
+                ctx.lineTo(-boss.width / 2, -boss.height / 2);
+                ctx.lineTo(-boss.width / 4, 0);
+                ctx.lineTo(0, -boss.height / 2);
+                ctx.lineTo(boss.width / 4, 0);
+                ctx.lineTo(boss.width / 2, -boss.height / 2);
+                ctx.closePath();
+                ctx.fill();
+                ctx.stroke();
+                ctx.restore();
+            }
+
+            // Draw Player Ship (劉勝杰的戰機)
+            if (gameState === 'PLAYING') {
+                ctx.save();
+                ctx.translate(player.x, player.y);
+
+                if (player.invulnerableTimer % 4 < 2) {
+                    ctx.fillStyle = '#00f3ff';
+                    ctx.strokeStyle = '#ffffff';
+                    ctx.lineWidth = 2;
+                    ctx.shadowColor = '#00f3ff';
+                    ctx.shadowBlur = 18;
+
+                    // Sleek Fighter Shape
+                    ctx.beginPath();
+                    ctx.moveTo(0, -player.height / 2);
+                    ctx.lineTo(-player.width / 2, player.height / 2);
+                    ctx.lineTo(-player.width / 6, player.height / 3);
+                    ctx.lineTo(0, player.height / 2);
+                    ctx.lineTo(player.width / 6, player.height / 3);
+                    ctx.lineTo(player.width / 2, player.height / 2);
+                    ctx.closePath();
+                    ctx.fill();
+                    ctx.stroke();
+                }
+
+                // Shield Aura
+                if (player.shield) {
+                    ctx.beginPath();
+                    ctx.arc(0, 0, player.width * 0.85, 0, Math.PI * 2);
+                    ctx.strokeStyle = 'rgba(0, 255, 255, 0.8)';
+                    ctx.lineWidth = 3;
+                    ctx.shadowColor = '#00ffff';
+                    ctx.shadowBlur = 15;
+                    ctx.stroke();
+                }
+
+                ctx.restore();
+            }
+
+            // Draw Particles
+            particles.forEach(pt => {
+                ctx.save();
+                ctx.globalAlpha = pt.alpha;
+                ctx.fillStyle = pt.color;
+                ctx.beginPath();
+                ctx.arc(pt.x, pt.y, pt.radius, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            });
+        }
+
+        function triggerGameOver() {
+            gameState = 'GAMEOVER';
+            hud.classList.add('hidden');
+            bossHud.classList.add('hidden');
+            finalScore.innerText = score;
+            finalLevel.innerText = level;
+            gameOverScreen.classList.remove('hidden');
+        }
+
+        // Main game loop
+        function gameLoop() {
+            update();
+            updateHUD();
+            draw();
+            requestAnimationFrame(gameLoop);
+        }
+
+        requestAnimationFrame(gameLoop);
+    </script>
+</body>
+</html>
